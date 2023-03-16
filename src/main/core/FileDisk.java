@@ -2,12 +2,10 @@ package main.core;
 
 import main.exception.DiskException;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 
 /**
  * FileDisk
@@ -19,11 +17,6 @@ import java.io.IOException;
 public class FileDisk implements IDisk{
     private static final String FILE_NAME = "mos.disk";
     private FileInputStream fileInputStream;
-    private FileOutputStream fileOutputStream;
-    public FileDisk() throws FileNotFoundException {
-
-        fileOutputStream = new FileOutputStream(this.getClass().getClassLoader().getResource("").getPath() + FILE_NAME, true);
-    }
 
     @Override
     public byte[] readSector(int sectorIdx) {
@@ -58,27 +51,34 @@ public class FileDisk implements IDisk{
 
     @Override
     public void writeSector(int sectorIdx, byte[] sectorData) {
+        writeSector(sectorIdx, 0, sectorData);
+    }
+
+    @Override
+    public void writeSector(int sectorIdx, int offset, byte[] sectorData) {
         if (0 < sectorIdx || sectorIdx >= sectorCount()) {
             throw new DiskException("illegal sectorIdx. sectorIdx must in [0, " + sectorCount() + ")");
         }
         if (null == sectorData || 0 == sectorData.length) {
             return;
         }
-        if (sectorData.length > secotrSize()) {
+        if (offset + sectorData.length > secotrSize()) {
             throw new DiskException("data too large");
         }
-
-        int offset = sectorIdx * secotrSize();
+        /* setting offset */
+        offset = sectorIdx * secotrSize() + offset;
+        RandomAccessFile randomAccessFile = null;
         try {
-            fileOutputStream = new FileOutputStream(this.getClass().getClassLoader().getResource("").getPath() + FILE_NAME, true);
-            fileOutputStream.write(result, offset, len);
-            return result;
+            randomAccessFile = new RandomAccessFile(
+                    this.getClass().getClassLoader().getResource("").getPath() + FILE_NAME, "rw");
+            randomAccessFile.seek(offset);
+            randomAccessFile.write(sectorData, 0, sectorData.length);
         }catch (IOException e) {
             throw new DiskException("read disk error. reason:" + e.getMessage());
         }finally {
-            if (null != fileInputStream) {
+            if (null != randomAccessFile) {
                 try {
-                    fileInputStream.close();
+                    randomAccessFile.close();
                 } catch (IOException e) {
                     throw new DiskException("read disk error. reason:" + e.getMessage());
                 }
@@ -86,14 +86,12 @@ public class FileDisk implements IDisk{
         }
     }
 
-    @Override
-    public void writeSector(int sectorIdx, int offset, byte[] sectorData) {
-
-    }
-
     public static void main(String arg[]) throws FileNotFoundException {
         IDisk disk = new FileDisk();
-        byte[] bytes = disk.readSector(0, 2);
+        String str = ";fda";
+        byte[] data = str.getBytes();
+        disk.writeSector(0, 3, data);
+        byte[] bytes = disk.readSector(0, 0,7);
         System.out.println(bytes);
     }
 }
