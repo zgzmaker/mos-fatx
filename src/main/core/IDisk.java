@@ -39,10 +39,12 @@ public interface IDisk {
      * 写一个指定扇区
      *
      * @param sectorIdx 扇区索引，起始索引为0，终止索引为 {@code sectorCount()-1}
-     * @param offset 扇区偏移量，从索引为offset时开始写入。
+     * @param sectorOffset 扇区偏移量，从索引为offset时开始写入。
      * @param sectorData 待写入的数据. 长度必须等于{@code sectorSize()}
+     * @param dataOffset 待写入数据偏移量
+     * @param len 待写入的数据长度，len < 0时，取sectorData数据长度
      */
-    void writeSector(int sectorIdx, int offset, byte[] sectorData);
+    void writeSector(int sectorIdx, int sectorOffset, byte[] sectorData, int dataOffset, int len);
 
     /**
      * 磁盘每个扇区的大小，固定为512字节

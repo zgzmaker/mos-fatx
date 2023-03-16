@@ -7,14 +7,14 @@ package main.exception;
  * @version: 1.0.0
  * @date 2023-3-15
  **/
-public class DiskException extends RuntimeException{
+public class MosFileSystemException extends RuntimeException{
 
     /**
      * 错误信息
      */
     private String message;
 
-    public DiskException(String message) {
+    public MosFileSystemException(String message) {
         super();
         this.message = message;
     }
