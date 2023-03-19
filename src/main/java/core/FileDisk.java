@@ -1,6 +1,6 @@
-package main.core;
+package core;
 
-import main.exception.MosFileSystemException;
+import main.java.exception.MosFileSystemException;
 
 import java.io.FileInputStream;
 import java.io.IOException;

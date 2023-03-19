@@ -1,6 +1,6 @@
-package main.core;
+package core;
 
-import main.ByteUtil;
+import main.java.ByteUtil;
 
 import java.io.FileNotFoundException;
 import java.nio.ByteBuffer;
@@ -57,7 +57,10 @@ public class DirectoryEntry {
 
         this.filenameExtension = new String(Arrays.copyOfRange(data, 8, 11));
         this.attribute = (char) data[11];
+    }
 
+    public int getStartingCluster() {
+        return ByteUtil.byte2Short(Arrays.copyOfRange(data, 26, 28));
     }
 
     public String getFormatDisplay() {
@@ -111,8 +114,6 @@ public class DirectoryEntry {
         tmp[29] = 0x62;
         tmp[30] = 0x62;
         tmp[31] = 0x62;
-        System.out.println(new String(tmp, StandardCharsets.UTF_8));
-        System.out.println(new String(tmp, StandardCharsets.UTF_8));
 
         ByteBuffer buffer = ByteBuffer.wrap(tmp);
         int i = buffer.getInt();

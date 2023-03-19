@@ -1,6 +1,6 @@
-package main.core;
+package core;
 
-import main.exception.MosFileSystemException;
+import main.java.exception.MosFileSystemException;
 
 import java.io.FileNotFoundException;
 import java.util.Arrays;
@@ -20,6 +20,8 @@ public class Cluster implements ICluster{
 
     private byte[] data;
 
+    private int dataLen;
+
     public Cluster(IDisk disk, int clusterId, boolean loadData) {
         this.disk = disk;
         this.clusterId = clusterId;
@@ -27,6 +29,11 @@ public class Cluster implements ICluster{
         if (loadData) {
             readCluster();
         }
+        this.dataLen = this.data.length;
+    }
+
+    public int getDataLen() {
+        return this.dataLen;
     }
 
     @Override
@@ -46,6 +53,43 @@ public class Cluster implements ICluster{
         return this.data;
     }
 
+    @Override
+    public void writeCluster(byte[] clusterData) {
+        if (null == clusterData) {
+            throw new IllegalArgumentException("clusterData should not be empty");
+        }
+        this.data = clusterData;
+        updateData(clusterData, 0, clusterData.length);
+    }
+
+    @Override
+    public void updateData(byte[] newData, int offset, int len) {
+        if (null == newData || 0 == newData.length || 0 >= len) {
+            return;
+        }
+
+        if (offset + len > disk.secotrSize() * sectorNum()) {
+            throw new IllegalArgumentException("data too large");
+        }
+
+        /* update data in memory*/
+        for(int i = offset; i < offset + len; i++) {
+            this.data[i] = newData[i - offset];
+        }
+
+        /* flush to disk. start to write data to sectors */
+        /* 簇内扇区下标 */
+        int sectorIndexInCluster = offset / disk.secotrSize();
+        int dataOffset = disk.secotrSize() * sectorIndexInCluster;
+        while (dataOffset < offset + dataLen && sectorIndexInCluster < sectorNum()) {
+            int sectorIdx = clusterId * sectorNum() + sectorIndexInCluster;
+            disk.writeSector(sectorIdx, Arrays.copyOfRange(this.data, dataOffset, dataOffset + disk.secotrSize()));
+
+            dataOffset += disk.secotrSize();
+            sectorIndexInCluster++;
+        }
+    }
+
     public byte[] getData(int offset, int len) {
         if (null == this.data) {
             readCluster();
@@ -56,45 +100,14 @@ public class Cluster implements ICluster{
         return Arrays.copyOfRange(this.data, offset, offset + len);
     }
 
-    @Override
-    public void writeCluster(int clusterId, int offset, byte[] clusterData) {
-        if (0 > clusterId || clusterId >= clusterCount()) {
-            throw new IllegalArgumentException("illegal clusterId. clusterId must in [0, " + clusterCount() + ")");
-        }
-
-        if (null == clusterData || 0 == clusterData.length) {
-            return;
-        }
-
-        int dataLen = clusterData.length;
-        if (offset + dataLen > disk.secotrSize() * sectorNum()) {
-            throw new MosFileSystemException("data too large");
-        }
-
-        /* start to write data to sectors */
-        /* 簇内扇区下标 */
-        int sectorIndexInCluster = offset / disk.secotrSize();
-        int dataOffset = 0;
-        while (dataOffset < dataLen && sectorIndexInCluster < sectorNum()) {
-            int sectorIdx = clusterId * sectorNum() + sectorIndexInCluster;
-            int startOffset = offset - sectorIdx * disk.secotrSize();
-            int len = Math.min(disk.secotrSize() - startOffset, dataLen - dataOffset);
-            disk.writeSector(sectorIdx, startOffset, clusterData, dataOffset, len);
-
-            dataOffset += len;
-            sectorIndexInCluster++;
-            offset += len;
-        }
-    }
-
     public static void main(String arg[]) throws FileNotFoundException {
         IDisk disk = new FileDisk();
         ICluster cluster = new Cluster(disk, 0, false);
         byte[] data = new byte[612];
         for (int i = 0; i < 612; i++) {
-            data[i] = 'b';
+            data[i] = 'c';
         }
-        cluster.writeCluster(0, 2, data);
+        cluster.updateData(data, 3, 600);
         System.out.println(data);
     }
 }

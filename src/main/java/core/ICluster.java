@@ -1,4 +1,4 @@
-package main.core;
+package core;
 
 /**
  * ICluster
@@ -12,7 +12,6 @@ public interface ICluster {
     /**
      * 读取一个指定扇区的数据
      *
-     * @param clusterId 簇索引，起始索引为0，终止索引为 {@code clusterCount()-1}
      * @return 扇区数据，返回的字节数组长度必须等于{@code sectorSize()}
      */
     byte[] readCluster();
@@ -20,11 +19,20 @@ public interface ICluster {
     /**
      * 写一个指定簇
      *
-     * @param clusterId 簇索引，起始索引为0，终止索引为 {@code clusterCount()-1}
-     * @param offset  簇偏移量，从offset下标开始写入数据
+     *
      * @param clusterData 待写入的数据. 长度必须等于{@code clusterSize()}
      */
-    void writeCluster(int clusterId, int offset, byte[] clusterData);
+    void writeCluster(byte[] clusterData);
+
+    /**
+     * 写一个指定簇
+     *
+     * @param newData 待写入的数据. 长度必须等于{@code clusterSize()}
+     * @param offset  簇偏移量，从cluster的offset下标开始写入新数据
+     * @param len 写入长度。
+     *
+     */
+    void updateData(byte[] newData, int offset, int len);
 
 
     /**
