@@ -13,7 +13,7 @@ import java.util.List;
  * @version: 1.0.0
  * @date 2023-3-16
  **/
-public class Directory {
+public class Directory extends MosFile {
 
     private static final int DIRECTORY_ENTRY_BYTE_SIZE = 32;
     /**
@@ -33,6 +33,10 @@ public class Directory {
                     Arrays.copyOfRange(data, i, i + DIRECTORY_ENTRY_BYTE_SIZE));
             entries.add(entry);
         }
+    }
+
+    public Directory(int startingCluster) {
+
     }
 
     public String output() {

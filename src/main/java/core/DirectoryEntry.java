@@ -5,9 +5,12 @@ import main.java.ByteUtil;
 import java.io.FileNotFoundException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.regex.Pattern;
 
 /**
  * DirectoryEntry
@@ -18,20 +21,38 @@ import java.util.Date;
  **/
 public class DirectoryEntry {
 
+    private Pattern fileExtPattern = Pattern.compile("[0-9, A-Z, #, $, %, &, ', (, ), -, @]+");
+
     private byte[] data;
 
     private String filename;
 
     private String filenameExtension;
 
-    private char attribute;
+    private boolean readOnly = false;
+
+    private boolean hidden = false;
+
+    private boolean forSystem = false;
+
+    private boolean volumeName = false;
+
+    private boolean directory = false;
+
+    private boolean achieveFlag = false;
+
+    private byte reservedForWindows = 0x00;
+
+    private byte creation = 0x00;
 
     private String createTime;
 
     /**
      * 上次访问日期
      */
-    private String LastAccessDate;
+    private String lastAccessDate;
+
+    private byte[] revervedForFat32 = new byte[2];
 
     /**
      * 最后修改时间
@@ -46,7 +67,7 @@ public class DirectoryEntry {
     /**
      * 文件大小
      */
-    private int fileSize;
+    private long fileSize;
 
 
     public DirectoryEntry(byte[] data) {
@@ -56,8 +77,37 @@ public class DirectoryEntry {
         this.filename = new String(tmp, StandardCharsets.UTF_8);
 
         this.filenameExtension = new String(Arrays.copyOfRange(data, 8, 11));
-        this.attribute = (char) data[11];
+
     }
+
+    public DirectoryEntry(String filename, boolean directory, int startingCluster, long fileSize) {
+        int index = filename.lastIndexOf(".");
+        if (index < 0) {
+            this.filenameExtension = "";
+            this.filename = filename;
+        } else {
+            this.filenameExtension = filename.substring(index + 1);
+            this.filename = filename.substring(0, index);
+        }
+        if (this.filename.length() > 8 || this.filenameExtension.length() > 3
+                || !fileExtPattern.matcher(this.filename).matches()
+                || !fileExtPattern.matcher(this.filenameExtension).matches()) {
+            throw new IllegalArgumentException("filename is illegal. source:" + filename);
+        }
+
+        this.directory = directory;
+        Date date = new Date();
+        this.createTime = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(date);
+        this.lastAccessDate = new SimpleDateFormat("yyyy/MM/dd").format(date);
+        this.modifyTimeStamp = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(date);
+        this.startingCluster = startingCluster;
+        this.fileSize = fileSize;
+
+        // TODO  对于direction entry 是用byte[] 存储，还是用各个变量来存储？
+        this.data = toBytes();
+    }
+
+
 
     public int getStartingCluster() {
         return ByteUtil.byte2Short(Arrays.copyOfRange(data, 26, 28));
@@ -66,7 +116,7 @@ public class DirectoryEntry {
     public String getFormatDisplay() {
 
         long fileSize = ByteUtil.byte2Int(Arrays.copyOfRange(this.data, 28, 32));
-        Short lastAccessTime = ByteUtil.byte2Short(Arrays.copyOfRange(this.data, 16, 18));
+        Short lastAccessTime = ByteUtil.byte2Short(Arrays.copyOfRange(this.data, 18, 20));
 
         long lastAccessTimestamp = lastAccessTime * 24 * 60 * 60L * 1000;
         String lastAccessDay = new SimpleDateFormat("yyyy/MM/dd").format(new Date(lastAccessTimestamp));
@@ -77,6 +127,38 @@ public class DirectoryEntry {
             filename = filename + "." + filenameExtension;
         }
         return String.format("%d\t%s\t%s", fileSize, lastAccessDay, filename);
+    }
+
+    public byte[] toBytes() {
+        byte[] result = new byte[32];
+        ByteUtil.copy(this.filename.getBytes(), result, 0);
+        ByteUtil.copy(this.filenameExtension.getBytes(), result, 8);
+        ByteUtil.copy(buildAttribute(), result, 11);
+        ByteUtil.copy(this.reservedForWindows, result, 12);
+        ByteUtil.copy(this.creation, result, 13);
+        ByteUtil.copy(ByteUtil.dateTimeToBytes(this.createTime, "yyyy/MM/dd HH:mm:ss"), 0, 4, result, 14);
+        ByteUtil.copy(ByteUtil.dateToBytes(this.lastAccessDate, "yyyy/MM/dd"), 0, 2, result, 18);
+        ByteUtil.copy(this.revervedForFat32, result, 20);
+        ByteUtil.copy(ByteUtil.dateTimeToBytes(this.modifyTimeStamp, "yyyy/MM/dd HH:mm:ss"), result, 22);
+        ByteUtil.copy(ByteUtil.intToBytes(this.startingCluster), result, 26);
+        ByteUtil.copy(ByteUtil.longToBytes(this.fileSize), 4, 4, result, 28);
+
+        return result;
+    }
+
+    private byte[] buildAttribute() {
+        int attribute = 0x00;
+        attribute = this.readOnly ? (attribute | 0x01) : (attribute & 0xfe);
+        attribute = this.hidden ? (attribute | 0x02) : (attribute & 0xfd);
+        attribute = this.forSystem ? (attribute | 0x04) : (attribute & 0xfb);
+        attribute = this.volumeName ? (attribute | 0x08) : (attribute & 0xf7);
+        attribute = this.directory ? (attribute | 0x10) : (attribute & 0xef);
+        attribute = this.achieveFlag ? (attribute | 0x20) : (attribute & 0xdf);
+
+        byte[] result = new byte[1];
+        result[0] = (byte) attribute;
+
+        return result;
     }
 
     public static void main(String arg[]) throws FileNotFoundException {
@@ -115,14 +197,17 @@ public class DirectoryEntry {
         tmp[30] = 0x62;
         tmp[31] = 0x62;
 
-        ByteBuffer buffer = ByteBuffer.wrap(tmp);
-        int i = buffer.getInt();
+//        ByteBuffer buffer = ByteBuffer.wrap(tmp);
+//        int i = buffer.getInt();
 
 
-        DirectoryEntry entry = new DirectoryEntry(tmp);
+        DirectoryEntry entry = new DirectoryEntry("NEWFILE.TXT", false, 6, 10);
         String formatDisplay = entry.getFormatDisplay();
 
 
+
         System.out.println(formatDisplay);
+
+
     }
 }
