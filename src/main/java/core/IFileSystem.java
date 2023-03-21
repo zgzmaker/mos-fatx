@@ -28,7 +28,7 @@ public interface IFileSystem {
      * @param fileName 文件全路径
      * @param data
      */
-    void write2File(String fileName, Byte[] data);
+    void write2File(String fileName, byte[] data);
 
     /**
      * 读取文件

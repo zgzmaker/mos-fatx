@@ -18,6 +18,10 @@ public class MosFile {
 
     private int fileSize;
 
+    public MosFile() {
+
+    }
+
     public MosFile(int startintCluster, int fileSize) {
         this.startintCluster = startintCluster;
         this.fileSize = fileSize;
@@ -43,6 +47,14 @@ public class MosFile {
     public void append(byte[] data) {
         if (null == data || data.length == 0) {
             return;
+        }
+
+        if (this.startintCluster == -1) {
+            this.startintCluster = FileSystem.fileAllocationTable.getNextEmptyCluster();
+            if (this.startintCluster == -1) {
+                throw new MosFileSystemException("disk if full");
+            }
+            FileSystem.fileAllocationTable.updateClusterValue(startintCluster, FileAllocationTable.EOF);
         }
 
         int clusterNum = FileSystem.fileAllocationTable.curClusterNum(startintCluster);

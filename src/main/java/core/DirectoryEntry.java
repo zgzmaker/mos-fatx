@@ -3,10 +3,7 @@ package core;
 import main.java.ByteUtil;
 
 import java.io.FileNotFoundException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
@@ -20,6 +17,8 @@ import java.util.regex.Pattern;
  * @date 2023-3-16
  **/
 public class DirectoryEntry {
+
+    private int id;
 
     private Pattern fileExtPattern = Pattern.compile("[0-9, A-Z, #, $, %, &, ', (, ), -, @]+");
 
@@ -70,7 +69,8 @@ public class DirectoryEntry {
     private long fileSize;
 
 
-    public DirectoryEntry(byte[] data) {
+    public DirectoryEntry(byte[] data, int id) {
+        this.id = id;
         this.data = data;
 
         byte[] tmp = Arrays.copyOfRange(data, 0, 8);
@@ -80,7 +80,8 @@ public class DirectoryEntry {
 
     }
 
-    public DirectoryEntry(String filename, boolean directory, int startingCluster, long fileSize) {
+    public DirectoryEntry(String filename, boolean directory, int startingCluster, long fileSize, int id) {
+        this.id = id;
         int index = filename.lastIndexOf(".");
         if (index < 0) {
             this.filenameExtension = "";
@@ -107,7 +108,14 @@ public class DirectoryEntry {
         this.data = toBytes();
     }
 
-
+    public String getFileName() {
+        String filenameExtension = new String(Arrays.copyOfRange(data, 8, 11));
+        String filename = new String(Arrays.copyOfRange(data, 0, 8), StandardCharsets.UTF_8);
+        if (null != filenameExtension && 0 < filenameExtension.length()) {
+            filename = filename + "." + filenameExtension;
+        }
+        return filename;
+    }
 
     public int getStartingCluster() {
         return ByteUtil.byte2Short(Arrays.copyOfRange(data, 26, 28));
@@ -127,6 +135,10 @@ public class DirectoryEntry {
             filename = filename + "." + filenameExtension;
         }
         return String.format("%d\t%s\t%s", fileSize, lastAccessDay, filename);
+    }
+
+    public int getFileSize() {
+        return ByteUtil.byte2Int(Arrays.copyOfRange(this.data, 28, 32));
     }
 
     public byte[] toBytes() {
@@ -201,13 +213,15 @@ public class DirectoryEntry {
 //        int i = buffer.getInt();
 
 
-        DirectoryEntry entry = new DirectoryEntry("NEWFILE.TXT", false, 6, 10);
-        String formatDisplay = entry.getFormatDisplay();
 
+    }
 
+    public void incrFileSize(int length) {
+        this.fileSize = getFileSize() + length;
+        ByteUtil.copy(ByteUtil.longToBytes(this.fileSize), 4, 4, this.data, 28);
+    }
 
-        System.out.println(formatDisplay);
-
-
+    public int getId() {
+        return id;
     }
 }

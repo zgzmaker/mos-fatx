@@ -177,4 +177,8 @@ public class Cluster implements ICluster{
         cluster.updateData(data, 3, 600);
         System.out.println(data);
     }
+
+    public int getClusterId() {
+        return clusterId;
+    }
 }
